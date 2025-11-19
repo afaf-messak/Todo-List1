@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To Do List - Projet d'Équipe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+    <div class="tablet-frame">
+        <header class="app-header">
+            <div class="greeting">Hello <span>Good Afternoon !</span></div>
+            <div class="time">Time: </div>
+        </header>
+        <main class="app-body">
+            <div class="title-container">
+                <h2>To Do List <span><img src="https://img.icons8.com/?size=100&id=b2fltYz5Fq7g&format=png&color=000000" alt="icon" style="width:22px;"></span></h2>
+            </div>
+            
+            <!-- Formulaire pour ajouter une tâche -->
+            <form method="POST" action="index.php" class="add-task-container" id="addTaskForm">
+                <input type="text" name="title" placeholder="Add new task" required>
+                <button type="submit" name="action" value="new">Add</button>
+            </form>
+
+            <!-- La liste des tâches -->
+            <ul class="task-list" id="taskList">
+                <li class="empty-message">Aucune tâche pour le moment.</li>
+            </ul>
+        </main>
+    </div>
+
+    <!-- Élément audio pour le son de célébration -->
+    <audio id="celebrationSound" src="https://cdn.pixabay.com/download/audio/2025/09/29/audio_c412f017e4.mp3?filename=loud-fanfare-trumpet-effect-01-412045.mp3" preload="auto"></audio>
+    <audio id="deleteTask" src="https://cdn.pixabay.com/download/audio/2025/06/01/audio_a2a9a3b7ae.mp3?filename=bottle-opening-wine-cork-pop-352701.mp3" preload="auto"></audio>
+
+    <script>
+        // Gestionnaire d'événement pour le formulaire d'ajout
+        document.getElementById('addTaskForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const input = this.querySelector('input[name="title"]');
+            const taskTitle = input.value.trim();
+            
+            if(taskTitle) {
+                addTask(taskTitle);
+                input.value = '';
+            }
+        });
+
+        // Tableau pour stocker les tâches
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+        // Fonction pour afficher les tâches
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            
+            if(tasks.length === 0) {
+                taskList.innerHTML = '<li class="empty-message">Aucune tâche pour le moment.</li>';
+                return;
+            }
+
+            // Grouper les tâches par date
+            const tasksByDate = {};
+            tasks.forEach(task => {
+                if(!tasksByDate[task.date]) {
+                    tasksByDate[task.date] = [];
+                }
+                tasksByDate[task.date].push(task);
+            });
+
+            let html = '';
+            Object.keys(tasksByDate).forEach(date => {
+                html += `<div class="date-header">${formatDate(date)}</div>`;
+                
+                tasksByDate[date].forEach(task => {
+                    html += `
+                        <li class="task-item ${task.done ? 'done' : ''}" data-id="${task.id}">
+                            <form class="checkbox-form">
+                                <button type="button" ${task.done ? 'style="border-color: var(--accent-color); background-color: var(--accent-color);"' : ''}>
+                                    ${task.done ? '✓' : ''}
+                                </button>
+                            </form>
+                            <span class="task-title">${task.title}</span>
+                            <form class="delete-form">
+                                <button type="button">🗑</button>
+                            </form>
+                        </li>
+                    `;
+                });
+            });
+
+            taskList.innerHTML = html;
+
+            // Ajouter les écouteurs d'événements
+            document.querySelectorAll('.checkbox-form button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const taskItem = this.closest('.task-item');
+                    const taskId = taskItem.dataset.id;
+                    toggleTask(taskId);
+                });
+            });
+
+            document.querySelectorAll('.delete-form button').forEach(button => {
+                button.addEventListener('click', function() {
+                    const taskItem = this.closest('.task-item');
+                    const taskId = taskItem.dataset.id;
+                    if(confirm('Supprimer cette tâche ?')) {
+                        deleteTask(taskId);
+                    }
+                });
+            });
+        }
+
+        // Fonction pour ajouter une tâche
+        function addTask(title) {
+            const newTask = {
+                id: Date.now().toString(),
+                title: title,
+                done: false,
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            tasks.push(newTask);
+            saveTasks();
+            renderTasks();
+        }
+
+        // Fonction pour basculer l'état d'une tâche
+        function toggleTask(id) {
+            const task = tasks.find(t => t.id === id);
+            if(task) {
+                const wasDone = task.done;
+                task.done = !task.done;
+                saveTasks();
+                renderTasks();
+                
+                // Si la tâche vient d'être marquée comme faite
+                if(!wasDone && task.done) {
+                    celebrateCompletion(task.title);
+                }
+            }
+        }
+
+        // Fonction pour supprimer une tâche
+        function deleteTask(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+
+        // Fonction pour sauvegarder les tâches dans le localStorage
+        function saveTasks() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        // Fonction pour formater la date
+        function formatDate(dateString) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('fr-FR', options);
+        }
+
+        // Fonction pour célébrer la complétion d'une tâche
+        function celebrateCompletion(taskTitle) {
+            // Jouer le son
+            const sound = document.getElementById('celebrationSound');
+            sound.currentTime = 0;
+            sound.play().catch(e => console.log("Lecture automatique bloquée:", e));
+            const sound2 = document.getElementById('deleteTask');
+            sound.currentTime = 0;
+            sound2.play().catch(e => console.log("Lecture automatique bloquée:", e));
+            
+            // Messages motivants
+            const messages = [
+                "Bravo ! Vous avez terminé : " + taskTitle,
+                "Félicitations ! Tâche accomplie : " + taskTitle,
+                "Excellent travail ! " + taskTitle + " est terminée",
+                "Vous êtes productif ! " + taskTitle + " est cochée",
+                "Une de moins ! " + taskTitle + " est terminée"
+            ];
+            
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            
+            // Afficher le message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'celebration-message';
+            messageDiv.innerHTML = `
+                <h3>🎉 Félicitations !</h3>
+                <p>${randomMessage}</p>
+                <button onclick="this.parentElement.remove()">Continuer</button>
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            // Supprimer automatiquement après 5 secondes
+            setTimeout(() => {
+                if(document.body.contains(messageDiv)) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Mettre à jour l'heure
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('fr-FR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            document.querySelector('.time').textContent = `Time: ${timeString}`;
+        }
+
+        // Initialiser
+        renderTasks();
+        updateTime();
+        setInterval(updateTime, 60000); 
+    </script>
+</body>
+</html>
