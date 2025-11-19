@@ -6,7 +6,7 @@ define('DB_NAME', 'todo-list');
 define('DB_HOST', '127.0.0.1');
 
 try {
-    $conn = new PDO("mysql:host=".DB_HOST.";dbname=".DB_NAME.";charset=utf8", DB_USER, DB_PASS);
+    $conn = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8", DB_USER, DB_PASS);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     die("Erreur de connexion : " . $e->getMessage());
@@ -15,8 +15,9 @@ try {
 // --- Gestion des actions ---
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $action = $_POST["action"] ?? '';
-    $id = (int)($_POST["id"] ?? 0);
+    $id = (int) ($_POST["id"] ?? 0);
     $title = trim($_POST["title"] ?? '');
+    $celebrate = false;
 
     // Ajouter une nouvelle tâche
     if ($action === "new" && $title !== '') {
@@ -29,8 +30,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     // Cocher / décocher
     if ($action === "toggle" && $id > 0) {
+        // Get current state to know if we switched from not-done (0) to done (1)
+        $stmt = $conn->prepare("SELECT done FROM todo WHERE id = :id");
+        $stmt->execute(['id' => $id]);
+        $currentDone = $stmt->fetchColumn();
+
         $stmt = $conn->prepare("UPDATE todo SET done = 1 - done WHERE id = :id");
         $stmt->execute(['id' => $id]);
+
+        // If the task was previously not done (0) and we toggled it, celebrate
+        if ($currentDone !== false && (int) $currentDone === 0) {
+            $celebrate = true;
+        }
     }
 
     // Supprimer
@@ -39,7 +50,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $stmt->execute(['id' => $id]);
     }
 
-    header("Location: index1.php");
+    $location = 'index1.php' . ($celebrate ? '?celebrate=1' : '');
+    header("Location: " . $location);
     exit;
 }
 
@@ -58,182 +70,252 @@ foreach ($tasks as $task) {
 ?>
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-<meta charset="UTF-8">
-<title>To Do List - Projet</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <title>To Do List - Projet</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 
-<style>
-/* --- STYLES --- */
-:root {
-    --bg-color: #f0f2f5;
-    --main-color: #ffffff;
-    --text-color: #3a3a3a;
-    --accent-color: #ff6b6b;
-    --border-color: #eeeeee;
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
-}
+    <style>
+        /* --- STYLES --- */
+        :root {
+            --bg-color: #f0f2f5;
+            --main-color: #ffffff;
+            --text-color: #3a3a3a;
+            --accent-color: #ff6b6b;
+            --border-color: #eeeeee;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.07);
+        }
 
-body {
-    background-color: var(--bg-color);
-    font-family: 'Poppins', sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    min-height:100vh;
-    margin:0;
-    color:var(--text-color);
-}
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Poppins', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+        }
 
-.tablet-frame {
-    background-color: var(--main-color);
-    border-radius:24px;
-    padding:15px;
-    box-shadow:var(--shadow);
-    width:100%;
-    max-width:420px;
-}
+        .tablet-frame {
+            background-color: var(--main-color);
+            border-radius: 24px;
+            padding: 15px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 420px;
+        }
 
-.app-header {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:10px 15px;
-    font-size:0.85rem;
-}
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            font-size: 0.85rem;
+        }
 
-.app-header span {
-    font-weight:600;
-    color:var(--accent-color);
-}
+        .app-header span {
+            font-weight: 600;
+            color: var(--accent-color);
+        }
 
-.app-body { padding:15px; }
-.title-container { text-align:center; margin-bottom:1.5rem; }
-.title-container h2 { margin:0; font-size:1.7rem; }
+        .app-body {
+            padding: 15px;
+        }
 
-.add-task-container {
-    display:flex;
-    margin-bottom:1.5rem;
-}
+        .title-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
 
-.add-task-container input {
-    flex-grow:1;
-    border:1px solid var(--border-color);
-    border-radius:25px;
-    padding:12px 20px;
-    font-size:0.9rem;
-    outline:none;
-    margin-right:-35px;
-}
+        .title-container h2 {
+            margin: 0;
+            font-size: 1.7rem;
+        }
 
-.add-task-container button {
-    border:none;
-    background-color:var(--accent-color);
-    color:white;
-    padding:12px 25px;
-    border-radius:25px;
-    cursor:pointer;
-    font-weight:500;
-}
+        .add-task-container {
+            display: flex;
+            margin-bottom: 1.5rem;
+        }
 
-.task-list { list-style:none; padding:0; margin:0; }
-.date-header { color:var(--accent-color); font-size:0.85rem; margin:10px 0; }
+        .add-task-container input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            outline: none;
+            margin-right: -35px;
+        }
 
-.task-item {
-    display:flex;
-    align-items:center;
-    background-color:#fafafa;
-    border:1px solid var(--border-color);
-    border-radius:12px;
-    padding:12px 15px;
-    margin-bottom:10px;
-}
+        .add-task-container button {
+            border: none;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+        }
 
-.task-item.done { background:#eeeeee; }
-.task-item.done .task-title { text-decoration:line-through; color:#aaa; }
+        .task-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
 
-.checkbox-form button {
-    width:22px;
-    height:22px;
-    border:2px solid #ccc;
-    border-radius:50%;
-    cursor:pointer;
-    margin-right:15px;
-    background:transparent;
-    font-size:12px;
-    color:white;
-}
+        .date-header {
+            color: var(--accent-color);
+            font-size: 0.85rem;
+            margin: 10px 0;
+        }
 
-.task-item.done .checkbox-form button {
-    background:var(--accent-color);
-    border-color:var(--accent-color);
-}
+        .task-item {
+            display: flex;
+            align-items: center;
+            background-color: #fafafa;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+        }
 
-.delete-form button {
-    border:none;
-    background:none;
-    cursor:pointer;
-    font-size:1.2rem;
-    color:#aaa;
-}
+        .task-item.done {
+            background: #eeeeee;
+        }
 
-.empty-message { text-align:center; padding:20px; color:#888; }
+        .task-item.done .task-title {
+            text-decoration: line-through;
+            color: #aaa;
+        }
 
-/* Pop-up de célébration */
-.celebration-message {
-    position:fixed;
-    top:50%; left:50%;
-    transform:translate(-50%,-50%);
-    background:white;
-    padding:20px;
-    border-radius:15px;
-    box-shadow:0 10px 30px rgba(0,0,0,0.2);
-    text-align:center;
-}
-</style>
+        .checkbox-form button {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            margin-right: 15px;
+            background: transparent;
+            font-size: 12px;
+            color: white;
+        }
+
+        .task-item.done .checkbox-form button {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .delete-form button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: #aaa;
+        }
+
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+
+        /* Pop-up de célébration */
+        .celebration-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
-<div class="tablet-frame">
+    <div class="tablet-frame">
 
-<header class="app-header">
-    <div>Hello <span>SweetHeart !</span></div>
-    <div class="time">Time: <span id="clock"></span></div>
-</header>
+        <header class="app-header">
+            <div>Hello <span>SweetHeart !</span></div>
+            <div class="time">Time: <span id="clock"></span></div>
+        </header>
 
-<main class="app-body">
-    <div class="title-container">
-        <h2>To Do List 📝</h2>
+        <main class="app-body">
+            <div class="title-container">
+                <h2>To Do List 📝</h2>
+            </div>
+
+            <form method="POST" class="add-task-container">
+                <input type="text" name="title" placeholder="Add new task" required>
+                <button type="submit" name="action" value="new">Add</button>
+            </form>
+
+            <ul class="task-list">
+                <?php if (empty($grouped_tasks)): ?>
+                    <li class="empty-message">Aucune tâche pour le moment.</li>
+                <?php else: ?>
+                    <?php foreach ($grouped_tasks as $date => $tasks_on_date): ?>
+                        <div class="date-header">Date : <?= date('d/m/Y', strtotime($date)); ?></div>
+
+                        <?php foreach ($tasks_on_date as $task): ?>
+                            <li class="task-item <?= $task['done'] ? 'done' : ''; ?>">
+                                <form method="POST" class="checkbox-form">
+                                    <input type="hidden" name="id" value="<?= $task['id']; ?>">
+                                    <button type="submit" name="action" value="toggle">
+                                        <?= $task['done'] ? '✔' : '' ?>
+                                    </button>
+                                </form>
+
+                                <span class="task-title"><?= htmlspecialchars($task['title']); ?></span>
+
+                                <form method="POST" class="delete-form">
+                                    <input type="hidden" name="id" value="<?= $task['id']; ?>">
+                                    <button name="action" value="delete">🗑</button>
+                                </form>
+                            </li>
+                        <?php endforeach; ?>
+                    <?php endforeach; ?>
+                <?php endif;
+                ?>
+
+
+        </main>
     </div>
+    <script>
+        // --- Horloge en temps réel ---
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+        // --- Messages de célébration ---
+        const messages = [
+            "Vous avez accompli quelque chose de génial aujourd'hui !",
+            "Chaque tâche terminée est une victoire !",
+            "Continuez comme ça, vous faites du bon travail !",
+            "Bravo pour votre productivité !",
+            "Une tâche de moins, un pas de plus vers vos objectifs !"
+        ];
+        if (window.location.search.includes('celebrate=1')) {
+            const message = messages[Math.floor(Math.random() * messages.length)];
+            const celebrationDiv = document.createElement('div');
+            celebrationDiv.className = 'celebration-message';
+            celebrationDiv.innerHTML = `<h3>Félicitations ! 🎉</h3><p>${message}</p><button onclick="this.parentElement.remove()">Fermer</button>`;
+            document.body.appendChild(celebrationDiv);
+        }
 
-    <form method="POST" class="add-task-container">
-        <input type="text" name="title" placeholder="Add new task" required>
-        <button type="submit" name="action" value="new">Add</button>
-    </form>
 
-    <ul class="task-list">
-        <?php if(empty($grouped_tasks)): ?>
-            <li class="empty-message">Aucune tâche pour le moment.</li>
-        <?php else: ?>
-            <?php foreach($grouped_tasks as $date => $tasks_on_date): ?>
-                <div class="date-header">Date : <?= date('d/m/Y', strtotime($date)); ?></div>
 
-                <?php foreach($tasks_on_date as $task): ?>
-                    <li class="task-item <?= $task['done'] ? 'done' : ''; ?>">
-                        <form method="POST" class="checkbox-form">
-                            <input type="hidden" name="id" value="<?= $task['id']; ?>">
-                            <button type="submit" name="action" value="toggle">
-                                <?= $task['done'] ? '✔' : '' ?>
-                            </button>
-                        </form>
 
-                        <span class="task-title"><?= htmlspecialchars($task['title']); ?></span>
+    </script>
+</body>
 
-                        <form method="POST" class="delete-form">
-                            <input type="hidden" name="id" value="<?= $task['id']; ?>">
-                            <button name="action" value="delete">🗑</button>
-                        </form>
-                    </li>
-                <?php endforeach; ?>
-            <?php endforeach; ?>
-        <?php endif;
+</html>
