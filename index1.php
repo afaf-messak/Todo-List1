@@ -375,26 +375,33 @@ foreach ($tasks as $task) {
                 gain.gain.setValueAtTime(0, now);
                 gain.connect(ctx.destination);
 
-                const freqs = [880, 1320, 1760]; // simple triad
+                // Bell-like partials (inharmonic-ish) for a pleasant chime
+                const freqs = [880, 1325, 1760, 2640];
                 freqs.forEach((f, i) => {
                     const osc = ctx.createOscillator();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(f, now + i * 0.06);
+                    // use a mix of waveforms for a richer timbre
+                    osc.type = i === 0 ? 'sine' : 'triangle';
+                    const start = now + i * 0.02;
+                    osc.frequency.setValueAtTime(f, start);
+
                     const localGain = ctx.createGain();
-                    localGain.gain.setValueAtTime(0, now + i * 0.06);
-                    localGain.gain.linearRampToValueAtTime(0.12, now + i * 0.06 + 0.02);
-                    localGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.6);
+                    // small attack, longer exponential decay for bell-like tail
+                    localGain.gain.setValueAtTime(0.0001, start);
+                    localGain.gain.exponentialRampToValueAtTime(0.18 / (i + 1), start + 0.02);
+                    localGain.gain.exponentialRampToValueAtTime(0.0001, start + 1.4);
+
                     osc.connect(localGain);
                     localGain.connect(gain);
-                    osc.start(now + i * 0.06);
-                    osc.stop(now + i * 0.6);
+                    osc.start(start);
+                    osc.stop(start + 1.5);
                 });
 
-                // overall envelope
-                gain.gain.linearRampToValueAtTime(1, now + 0.01);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-                // close context after sound
-                setTimeout(() => { if (ctx.close) ctx.close(); }, 1200);
+                // overall envelope to avoid clicks and shape final amplitude
+                gain.gain.setValueAtTime(0.0001, now);
+                gain.gain.exponentialRampToValueAtTime(1.0, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+                // close AudioContext after playback
+                setTimeout(() => { if (ctx.close) ctx.close(); }, 1700);
             } catch (e) {
                 // Audio may be blocked by autoplay policies — ignore silently
                 console.warn('Audio playback failed:', e);
@@ -425,8 +432,6 @@ foreach ($tasks as $task) {
             // Try to play the celebration sound. If blocked, it will fail silently.
             playCelebrationSound();
         }
-
-
 
 
     </script>
