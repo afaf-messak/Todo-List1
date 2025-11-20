@@ -55,14 +55,14 @@ L'objectif est de vous permettre de gérer efficacement vos tâches quotidiennes
    - Ouvrez `index1.php` dans votre navigateur via un serveur local (ex : XAMPP, WAMP, MAMP).
 
 ---
-<<<<<<< HEAD
+
 📸 Screenshots:
 [Le site](Resultat.mp4)
 ![Jira](Jira.png)
 ![Jira](taches.png)
 ![Jira](phpmyadmin.png)
 =======
->>>>>>> 494d8beab97af22c4ebe34172a62799e08f3f228
+
 
 ## 👩‍💻👩‍💻 Auteurs
 
@@ -74,8 +74,4 @@ Ce travail a été réalisé en binôme par :
 ---
 
 Merci d’avoir utilisé notre application ! 💖  
-<<<<<<< HEAD
 
-=======
-Pour toute suggestion ou amélioration, n’hésitez pas à créer une issue ou un pull request
->>>>>>> 494d8beab97af22c4ebe34172a62799e08f3f228
