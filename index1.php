@@ -352,7 +352,11 @@ foreach ($tasks as $task) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
+<<<<<<< HEAD
             document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+=======
+            document.getElementById('clock').textContent = ${hours}:${minutes}:${seconds};
+>>>>>>> 494d8beab97af22c4ebe34172a62799e08f3f228
         }
         setInterval(updateClock, 1000);
         updateClock();
@@ -375,6 +379,7 @@ foreach ($tasks as $task) {
                 gain.gain.setValueAtTime(0, now);
                 gain.connect(ctx.destination);
 
+<<<<<<< HEAD
                 // Bell-like partials (inharmonic-ish) for a pleasant chime
                 const freqs = [880, 1325, 1760, 2640];
                 freqs.forEach((f, i) => {
@@ -429,11 +434,65 @@ foreach ($tasks as $task) {
                 if (e.target === overlay) overlay.remove();
             });
 
+=======
+                const freqs = [880, 1320, 1760]; // simple triad
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now + i * 0.06);
+                    const localGain = ctx.createGain();
+                    localGain.gain.setValueAtTime(0, now + i * 0.06);
+                    localGain.gain.linearRampToValueAtTime(0.12, now + i * 0.06 + 0.02);
+                    localGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.6);
+                    osc.connect(localGain);
+                    localGain.connect(gain);
+                    osc.start(now + i * 0.06);
+                    osc.stop(now + i * 0.6);
+                });
+
+                // overall envelope
+                gain.gain.linearRampToValueAtTime(1, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+                // close context after sound
+                setTimeout(() => { if (ctx.close) ctx.close(); }, 1200);
+            } catch (e) {
+                // Audio may be blocked by autoplay policies — ignore silently
+                console.warn('Audio playback failed:', e);
+            }
+        }
+
+        if (window.location.search.includes('celebrate=1')) {
+            const message = messages[Math.floor(Math.random() * messages.length)];
+            const overlay = document.createElement('div');
+            overlay.className = 'celebration-overlay';
+            overlay.innerHTML = `
+                <div class="celebration-message">
+                    <h3>Félicitations ! 🎉</h3>
+                    <p>${message}</p>
+                    <button id="close-celebration" class="celebration-btn">Fermer</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const closeBtn = overlay.querySelector('#close-celebration');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function () { overlay.remove(); });
+            }
+            // Close on overlay click (but not when clicking inside the message)
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+
+>>>>>>> 494d8beab97af22c4ebe34172a62799e08f3f228
             // Try to play the celebration sound. If blocked, it will fail silently.
             playCelebrationSound();
         }
 
 
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 494d8beab97af22c4ebe34172a62799e08f3f228
     </script>
 </body>
 
