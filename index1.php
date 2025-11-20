@@ -222,16 +222,75 @@ foreach ($tasks as $task) {
         }
 
         /* Pop-up de célébration */
-        .celebration-message {
+        .celebration-overlay {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
             padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .celebration-message {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f0ff 100%);
+            padding: 28px 26px;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(99, 52, 137, 0.15);
             text-align: center;
+            max-width: 460px;
+            width: 100%;
+            animation: popIn 320ms cubic-bezier(.2, .9, .3, 1);
+        }
+
+        .celebration-message h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.6rem;
+            color: lightseagreen;
+            /* purple-700 */
+            letter-spacing: -0.4px;
+        }
+
+        .celebration-message p {
+            margin: 0 0 16px 0;
+            color: #444;
+            font-size: 0.98rem;
+        }
+
+        .celebration-btn,
+        #close-celebration {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(90deg, lightseagreen 0%, #ec4899 100%);
+            padding: 10px 18px;
+            border-radius: 999px;
+            font-weight: 600;
+            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.18);
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            font-size: 1rem;
+        }
+
+        .celebration-btn:hover,
+        #close-celebration:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(124, 58, 237, 0.22);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translateY(8px) scale(0.98);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
         }
     </style>
 </head>
@@ -282,6 +341,7 @@ foreach ($tasks as $task) {
                 <?php endif;
                 ?>
 
+            </ul>
 
         </main>
     </div>
@@ -292,7 +352,7 @@ foreach ($tasks as $task) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('clock').textContent = ${hours}:${minutes}:${seconds};
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
         }
         setInterval(updateClock, 1000);
         updateClock();
@@ -304,12 +364,66 @@ foreach ($tasks as $task) {
             "Bravo pour votre productivité !",
             "Une tâche de moins, un pas de plus vers vos objectifs !"
         ];
+        // Play a short celebration chime using Web Audio API
+        function playCelebrationSound() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+
+                const now = ctx.currentTime;
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0, now);
+                gain.connect(ctx.destination);
+
+                const freqs = [880, 1320, 1760]; // simple triad
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now + i * 0.06);
+                    const localGain = ctx.createGain();
+                    localGain.gain.setValueAtTime(0, now + i * 0.06);
+                    localGain.gain.linearRampToValueAtTime(0.12, now + i * 0.06 + 0.02);
+                    localGain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.6);
+                    osc.connect(localGain);
+                    localGain.connect(gain);
+                    osc.start(now + i * 0.06);
+                    osc.stop(now + i * 0.6);
+                });
+
+                // overall envelope
+                gain.gain.linearRampToValueAtTime(1, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+                // close context after sound
+                setTimeout(() => { if (ctx.close) ctx.close(); }, 1200);
+            } catch (e) {
+                // Audio may be blocked by autoplay policies — ignore silently
+                console.warn('Audio playback failed:', e);
+            }
+        }
+
         if (window.location.search.includes('celebrate=1')) {
             const message = messages[Math.floor(Math.random() * messages.length)];
-            const celebrationDiv = document.createElement('div');
-            celebrationDiv.className = 'celebration-message';
-            celebrationDiv.innerHTML = <h3>Félicitations ! 🎉</h3><p>${message}</p><button onclick="this.parentElement.remove()">Fermer</button>;
-            document.body.appendChild(celebrationDiv);
+            const overlay = document.createElement('div');
+            overlay.className = 'celebration-overlay';
+            overlay.innerHTML = `
+                <div class="celebration-message">
+                    <h3>Félicitations ! 🎉</h3>
+                    <p>${message}</p>
+                    <button id="close-celebration" class="celebration-btn">Fermer</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            const closeBtn = overlay.querySelector('#close-celebration');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function () { overlay.remove(); });
+            }
+            // Close on overlay click (but not when clicking inside the message)
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+
+            // Try to play the celebration sound. If blocked, it will fail silently.
+            playCelebrationSound();
         }
 
 
