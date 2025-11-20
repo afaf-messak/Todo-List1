@@ -292,7 +292,7 @@ foreach ($tasks as $task) {
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('clock').textContent = ${hours}:${minutes}:${seconds};
         }
         setInterval(updateClock, 1000);
         updateClock();
@@ -308,7 +308,7 @@ foreach ($tasks as $task) {
             const message = messages[Math.floor(Math.random() * messages.length)];
             const celebrationDiv = document.createElement('div');
             celebrationDiv.className = 'celebration-message';
-            celebrationDiv.innerHTML = `<h3>Félicitations ! 🎉</h3><p>${message}</p><button onclick="this.parentElement.remove()">Fermer</button>`;
+            celebrationDiv.innerHTML = <h3>Félicitations ! 🎉</h3><p>${message}</p><button onclick="this.parentElement.remove()">Fermer</button>;
             document.body.appendChild(celebrationDiv);
         }
 
